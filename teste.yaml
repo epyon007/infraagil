@@ -1,4 +1,4 @@
-	- name: testando git
+- name: testando git
   hosts: all
   tasks:
    - name: zuei
