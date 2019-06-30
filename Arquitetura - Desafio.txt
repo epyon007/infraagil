@@ -1,0 +1,384 @@
+ 
+
+
+      ____						  ____
+     |    |                                              |    |
+     |____|                                              |____|
+    /______\						/______\
+    
+Host (AWS / GCP) <====================================> Seu notebook (De onde você acessará as páginas)
+
+NGINX							Docker (Client)
+Virtualhost1
+Virtualhost2
+Virtualhost3
+(Configurar Proxy_Pass)
+
+Docker (Server)
+
+App1 (Apache + Index1)
+App2 (Apache + Index2)
+App3 (Apache + Index3)
+
+
+
+---Instalação ANSIBLE
+Especificar Inventario
+Arquivo de Playbook
+
+
+---SSH
+mkdir /etc/keys
+Salvar chave no /etc/keys com o nome /etc/keys/key.pem
+
+Instalar ANSIBLE no host
+apt-get update
+apt-get install ansible
+
+-----> Editar o arquivo /etc/ansible/ansible.cfg
+
+descomentar linha 
+roles_path	=	/etc/ansible/roles
+#SSH
+timeout = 30
+
+log_path = /var/log/ansible.log
+
+private_key_file = /etc/keys/key.pem
+
+Salvar documento
+
+--- Editar arquivo /etc/ansible/hosts
+
+#[devops]
+#ip da maquina
+[docker]
+ip da maquina docker
+#[automation]
+#ip da maquina
+
+
+#testar conexão com a máquina remota
+ansible docker -m ping
+
+cd /home/usuario/exemplos
+vim resolv.conf
+
+#Atualizado via ANSIBLE
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+search dexter.com.br
+domain dexter.com.br
+
+cd /etc/ansible
+
+-----Criar playbook
+vim playbook.yml
+
+
+---
+#Playbook de exemplo
+- name: Personalizando o arquivo de resolv.conf
+  hosts: all
+  tasks:
+    - name: Atualizando o arquivo
+      copy: src=/root/exemplos/resolv.conf (definir caminho absoulto) dest=/etc/resolv.conf
+
+- name: Garantir a instalação de pacotes
+  hosts: devops docker
+  tasks:
+    - name: instalando os pacotes
+      apt: name={{ item }} update_cache=yes state=present
+      with_items:
+        - docker
+        - nginx
+        - nano
+...
+
+
+ansible-playbook playbook.yml
+
+
+cd /etc/ansible
+mkdir roles/
+cd roles/
+
+
+
+ansible-galaxy init docker
+
+apt-install tree -y
+
+tree docker/
+
+vim docker/tasks/main.yml
+
+Pesquisar documentação docker/ubuntu
+
+docker CE
+---
+#tasks file for docker
+- name: Garantindo dependencias
+  apt:name name={{ item }} update_cache=yes state=present
+  with_items: 
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - software-properties-common
+
+- apt_key: 
+    url: "https://download.docker.com/linux/ubuntu/gpg"
+    validate_certs: false
+    state: present
+
+- apt_repository:
+    repo: "deb [arch=adm64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+
+-name: Instalação
+ apt: name=docker-ce update_cache=yes state=present
+...
+
+Salvar
+
+ansible nome_da_maquina -m setup (para coletar informações da máquina)
+ansible nome_da_maquina -m setup | grep xenial (verificar campo ansible-distribution_release)
+
+cd /etc/ansible/playbooks
+vim docker.yml
+
+---
+- name: executando roles da máquina
+  hosts: docker
+  roles:
+    - docker
+...
+
+
+ansible-playbook docker.yml
+
+Após instalado, acessar maquina que o docker est[a instalado e checar
+
+systemctl status docker
+systemctl enable docker
+
+ps aux | grep docker
+
+DOCKER
+
+##image - read-only
+##container - read and write
+
+##docker container run --name app1 debian 
+
+##docker container run -dit --name app2 debian bash
+
+
+mkdir /root/dockerfiles
+
+cd dockerfiles
+
+scp maquina:/etc/keys/key.pem id_rsa
+yes
+
+vim config 
+
+<------------------>
+Host *
+	
+	StrictHostKeyChecking no
+	UserKnownHostsFile=/dev/null
+<------------------>
+#vim index.html ->>Criar um para cada deploy
+<--------------------->
+<html>
+<h1>
+APP1
+</h1>
+<html/>
+<---------------------->
+#vim Dockerfile
+<------------------->
+FROM ubuntu
+
+RUN apt-get update
+
+RUN apt-get install apache2(verificar nome e dependencias) vim -y
+
+RUN mkdir /root/.ssh
+
+COPY id_rsa /root/.ssh/
+
+COPY config /root/.ssh
+
+COPY index?.html(criar um para cada app) /var/www/html/index.html
+<------------------->
+
+docker build -t deploy_app1(2-3) . (especificando caminho do dockerfile)
+
+docker run -dit -p 8081:80 --name app1 deploy_app1
+docker run -dit -p 8082:80 --name app2 deploy_app2
+docker run -dit -p 8083:80 --name app3 deploy_app3
+
+service nginx restart
+service nginx enable
+ 
+
+
+###Verificar configurações de rede do docker
+###https://docs.docker.com
+
+
+###Instalar docker compose
+###(Verificar documentação)
+
+###curl ---url da documentação
+
+###chmod +x /usr/local/bin/docker-compose
+
+###mkdir compose
+###cd compose/
+
+###vim docker-compose.yml
+###<------------------------->
+###apache_dexter:
+### image: apache - (verificar nome
+###  ports:
+###    - 8080:80
+###
+###nginx_dexter
+###  image: nginx
+###<-------------------------->
+
+###docker-compose up (para subir os containers do arquivo)
+
+
+
+
+AULA NGINX
+
+Acessar máquina docker
+
+apt-get update
+apt-get install nginx -y
+
+cd /etc/nginx/
+ls
+
+cd sites-enabled/
+mv default /home/default.dist
+
+###vim teste.conf
+
+###<----------------->
+
+###server {
+    
+###   listen 80;
+###   root /var/www/html;
+###   index index2.html
+
+###}
+
+###<----------------->
+
+###vim /var/www/html/index2.html
+
+
+###<----------->
+###<html>
+###<h1>Teste</h1>
+###</html>
+
+###<----------->
+
+systemctl restart nginx
+
+cd /etc/nginx/sites-enabled
+vim app1.dexter.conf
+
+<-------------------->
+server {
+	listen 80;
+	server_name app1.dexter.com.br;
+	root /var/www/html/index.html;
+
+	location / {
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8081;
+	}
+}
+<--------------------->
+
+
+vim app2.dexter.conf
+
+<-------------------->
+server {
+	listen 80;
+	server_name app2.dexter.com.br;
+	root /var/www/html/index.html;
+
+	location / {
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8082;
+	}
+}
+<--------------------->
+
+vim app3.dexter.conf
+
+<-------------------->
+server {
+	listen 80;
+	server_name app3.dexter.com.br;
+	root /var/www/html/index.html;
+
+	location / {
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header Host $host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8083;
+	}
+}
+<--------------------->
+
+###ansible-galaxy init verificar
+###ansible init log
+###ansible init create
+
+
+###vim verificar/files/green.conf
+
+###<--------------->
+###server {
+
+###	listen 80;
+###	location / {
+
+###		proxy_pass http://10.0.0.41/;
+###	}
+
+###}
+
+
+###<--------------->
+###vim verificar/files/green.conf
+
+###<--------------->
+###server {
+
+###	listen 80;
+###	location / {
+
+###		proxy_pass http://10.0.0.42/;
+###	}
+
+###}
+###<--------------->
+
+
